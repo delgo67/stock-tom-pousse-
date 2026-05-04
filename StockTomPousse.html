@@ -632,7 +632,7 @@ async function loadFromOneDrive() {
         const drivesData = await drivesRes.json();
         const docLib = drivesData.value?.find(d => d.name === 'Documents' || d.name === 'Shared Documents' || d.webUrl?.includes('Stock'));
         if (docLib) {
-          const altUrl = \`https://graph.microsoft.com/v1.0/drives/\${docLib.id}/root:/Stock/Test%20stock%20online/stocks.json:/content\`;
+          const altUrl = 'https://graph.microsoft.com/v1.0/drives/' + docLib.id + '/root:/Stock/Test%20stock%20online/stocks.json:/content';
           res = await graphRequest('GET', altUrl);
           if (res.ok) {
             // Update constants for future calls
@@ -961,6 +961,11 @@ function renderStock() {
       </td>
     </tr>`;
   }).join('');
+}
+
+function quickMoveIdx(idx, type) {
+  const art = articles[idx];
+  if (art) quickMove(art.article, type);
 }
 
 function quickMove(articleName, type) {
