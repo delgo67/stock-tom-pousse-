@@ -500,8 +500,11 @@ const MSAL_CONFIG = {
 };
 
 const GRAPH_SCOPES = ['Files.ReadWrite', 'User.Read'];
-const SP_FILE_CONTENT = 'https://graph.microsoft.com/v1.0/sites/tompoussepaysage.sharepoint.com:/sites/TOMPOUSSEPAYSAGE:/drive/root:/Stock/Test%20stock%20online/stocks.json:/content';
-const SP_FILE_META    = 'https://graph.microsoft.com/v1.0/sites/tompoussepaysage.sharepoint.com:/sites/TOMPOUSSEPAYSAGE:/drive/root:/Stock/Test%20stock%20online/stocks.json';
+// SharePoint "Documents" library = internal name "Shared Documents"
+const SP_BASE = 'https://graph.microsoft.com/v1.0/sites/tompoussepaysage.sharepoint.com:/sites/TOMPOUSSEPAYSAGE:/drive/root:';
+const SP_FILE_PATH = '/Stock/Test%20stock%20online/stocks.json';
+const SP_FILE_CONTENT = SP_BASE + SP_FILE_PATH + ':/content';
+const SP_FILE_META    = SP_BASE + SP_FILE_PATH;
 
 let msalInstance;
 let currentUser = null;
@@ -600,8 +603,27 @@ async function loadFromOneDrive() {
   setSyncStatus('syncing', 'Chargement...');
   try {
     // Try personal OneDrive first, then SharePoint
-    const res = await graphRequest('GET', SP_FILE_CONTENT);
-    if (!res.ok) throw new Error('Fichier non trouvé (' + res.status + ')');
+    // Try primary path
+    let res = await graphRequest('GET', SP_FILE_CONTENT);
+    
+    // If not found, try via drives API
+    if (!res.ok) {
+      const drivesRes = await graphRequest('GET', 'https://graph.microsoft.com/v1.0/sites/tompoussepaysage.sharepoint.com:/sites/TOMPOUSSEPAYSAGE:/drives');
+      if (drivesRes.ok) {
+        const drivesData = await drivesRes.json();
+        const docLib = drivesData.value?.find(d => d.name === 'Documents' || d.name === 'Shared Documents' || d.webUrl?.includes('Stock'));
+        if (docLib) {
+          const altUrl = \`https://graph.microsoft.com/v1.0/drives/\${docLib.id}/root:/Stock/Test%20stock%20online/stocks.json:/content\`;
+          res = await graphRequest('GET', altUrl);
+          if (res.ok) {
+            // Update constants for future calls
+            window.SP_DRIVE_ID = docLib.id;
+          }
+        }
+      }
+    }
+    
+    if (!res.ok) throw new Error('Fichier stocks.json non trouvé (code ' + res.status + '). Vérifiez SharePoint > Stock > Test stock online');
 
     // Get ETag from metadata
     const metaRes = await graphRequest('GET', SP_FILE_META);
