@@ -484,9 +484,19 @@ const MSAL_CONFIG = {
   auth: {
     clientId: 'f84cf9af-1639-4214-b2f4-5311256dc915',
     authority: 'https://login.microsoftonline.com/2d4770c3-ceab-4f94-b723-0a690068c2d4',
-    redirectUri: 'https://delgo67.github.io/stock-tom-pousse-/StockTomPousse.html'
+    redirectUri: 'https://delgo67.github.io/stock-tom-pousse-/StockTomPousse.html',
+    navigateToLoginRequestUrl: true
   },
-  cache: { cacheLocation: 'sessionStorage' }
+  cache: { 
+    cacheLocation: 'localStorage',
+    storeAuthStateInCookie: true
+  },
+  system: {
+    allowNativeBroker: false,
+    windowHashTimeout: 9000,
+    iframeHashTimeout: 9000,
+    loadFrameTimeout: 9000
+  }
 };
 
 const GRAPH_SCOPES = ['Files.ReadWrite', 'User.Read'];
@@ -541,20 +551,11 @@ async function initMsal() {
 }
 
 async function login() {
-  showLoading('Connexion Microsoft...');
   try {
-    if (!msalInstance) {
-      await initMsal();
-    }
-    const result = await msalInstance.loginPopup({ scopes: GRAPH_SCOPES });
-    accessToken = result.accessToken;
-    currentUser = result.account;
-    msalInstance.setActiveAccount(currentUser);
-    await startApp();
-    return;
+    await msalInstance.loginRedirect({ scopes: GRAPH_SCOPES });
   } catch(e) {
     showLogin();
-    showToast('Erreur de connexion : ' + e.message, 'error');
+    showToast('Erreur : ' + e.message, 'error');
   }
 }
 
