@@ -555,10 +555,29 @@ async function initMsal() {
 
 async function login() {
   try {
-    await msalInstance.loginRedirect({ scopes: GRAPH_SCOPES });
+    // Try popup first (works in most browsers)
+    const result = await msalInstance.loginPopup({ 
+      scopes: GRAPH_SCOPES,
+      prompt: 'select_account'
+    });
+    accessToken = result.accessToken;
+    currentUser = result.account;
+    msalInstance.setActiveAccount(currentUser);
+    showLoading('Chargement des données...');
+    await startApp();
   } catch(e) {
-    showLogin();
-    showToast('Erreur : ' + e.message, 'error');
+    if (e.errorCode === 'popup_window_error' || e.errorCode === 'block_nested_popups' || e.message?.includes('popup')) {
+      // Popup blocked - fallback to redirect
+      try {
+        await msalInstance.loginRedirect({ scopes: GRAPH_SCOPES });
+      } catch(e2) {
+        showLogin();
+        showToast('Erreur : ' + e2.message, 'error');
+      }
+    } else {
+      showLogin();
+      showToast('Erreur : ' + e.message, 'error');
+    }
   }
 }
 
